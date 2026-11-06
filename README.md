@@ -8,8 +8,7 @@ Verify HMAC webhook signatures on the raw body with GitHub, Standard Webhooks an
 
 ## Problem
 
-Describe in two or three sentences the concrete problem this utility solves, who hits it, and why existing
-packages do not solve it well. Keep it factual; link to an issue or decision record when there is one.
+Webhook endpoints are public URLs, so anyone can post forged events unless the signature is checked, and a valid request can be replayed later. Each provider signs a slightly different payload, and teams compare signatures with plain equality, verify a re-serialised body or remember replay keys before checking the signature. This library verifies raw-body HMAC signatures with spec-exact presets, a strict check order and a bounded replay store.
 
 ## Install
 
@@ -17,29 +16,40 @@ packages do not solve it well. Keep it factual; link to an issue or decision rec
 npm install @trysac/webhook-verifier
 ```
 
-Requires Node.js 20 or newer. The package ships ES modules with TypeScript declarations.
+Requires Node.js 20 or newer. The package ships ES modules with TypeScript declarations and has no runtime dependencies.
 
 ## Usage
 
 ```ts
-import { greet } from "@trysac/webhook-verifier";
+import { presets, verify } from "@trysac/webhook-verifier";
 
-// Build a greeting; surrounding whitespace is ignored.
-const message = greet("  Ada ");
-console.log(message); // "Hello, Ada!"
-
-try {
-  greet("   ");
-} catch (error) {
-  console.error((error as Error).message); // "name must not be empty"
-}
+const headers = { "x-hub-signature-256": "sha256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17" };
+const secrets = ["It's a Secret to Everybody"];
+console.log(await verify("Hello, World!", headers, { secrets, scheme: presets.githubStyle }));
 ```
+
+The example prints `{ ok: true }`. Pass the exact bytes received as the body, never a re-serialised object. `verify` does not reject for request data; it resolves `{ ok: false, reason }` instead. Check order: body size, required headers, header parsing, timestamp tolerance, signature (all secrets against all signatures), then replay.
 
 ## API
 
 | Export | Signature | Description |
 |---|---|---|
-| `greet` | `(name: string) => string` | Placeholder API; replace it with the real one. |
+| `verify` | `(rawBody, headers, options: VerifyOptions) => Promise<VerifyResult>` | Verifies a delivery. Result is `{ ok: true; timestamp?; id? }` or `{ ok: false; reason }`. |
+| `sign` | `(rawBody, secret, scheme, { timestamp?, id? }?) => Record<string, string>` | Produces the signature headers a sender attaches. |
+| `presets` | `{ githubStyle, standardWebhooks, stripeStyle }` | Spec-exact `Scheme` presets. |
+| `MemoryReplayStore` | `new MemoryReplayStore({ clock?, maxEntries? })` | In-memory `ReplayStore` with at most `maxEntries` keys (default 100000). Expired keys are evicted first. |
+| `ReplayStore` | `{ checkAndRemember(key, ttlMs): Promise<'new' \| 'seen' \| 'full'> }` | Interface for a custom or shared replay store. |
+| `Scheme` | interface | Describes how a provider signs, transports and parses signatures. |
+| `VerifyOptions` | interface | `secrets` (1 to 16), `scheme`, `toleranceSeconds?`, `replayStore?`, `replayTtlSeconds?` (default 86400), `maxBodyBytes?` (default 1048576), `clock?` (milliseconds). |
+| `WebhookConfigError` | `class extends Error { code: 'invalid_options' }` | Thrown (the promise rejects) for invalid options, such as an empty secret list, negative tolerance or a non-base64 `whsec_` secret, and for a body or headers of the wrong type. Messages never contain secrets. |
+
+`VerifyResult` failure reasons: `missing_header`, `malformed_header`, `body_too_large`, `timestamp_out_of_range`, `signature_mismatch`, `replayed`, `replay_store_full`.
+
+Limits: body 1048576 bytes by default; header values 8192 characters; delivery ids 256 characters; 32 signatures per header; 16 secrets; replay keys 1024 characters. `toleranceSeconds` is enforced only when set. Timestamped schemes then use a replay TTL of twice the tolerance.
+
+## Security
+
+The threat model, the defended threats and the limits that are not defended are described in [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Development
 
