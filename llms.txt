@@ -1,13 +1,14 @@
 # @trysac/webhook-verifier
 
-> Verify HMAC webhook signatures on the raw body with GitHub, Standard Webhooks and Stripe-style presets, timestamp tolerance, replay store and key rotation TypeScript library for Node.js 20+, published as ES modules with type declarations. MIT.
+> TypeScript library for Node.js 20+ that verifies HMAC webhook signatures on the raw body with GitHub, Standard Webhooks and Stripe-style presets, timestamp tolerance, a replay store and key rotation. Published as ES modules with type declarations. MIT.
 
 ## Docs
 
-- [README](README.md): problem, installation and usage example
+- [README](README.md): problem, installation, usage example and API summary
 - [AGENTS.md](AGENTS.md): commands, folder map, conventions and limits for contributors and agents
-- [Architecture](docs/ARCHITECTURE.md): modules and boundaries
-- [Testing](docs/TESTING.md): how tests and coverage work
+- [Architecture](docs/ARCHITECTURE.md): modules, boundaries and verification flow
+- [Security](docs/SECURITY.md): threat model, defended and undefended threats
+- [Testing](docs/TESTING.md): the test suite and coverage rules
 - [Decisions](docs/decisions/0001-record-architecture-decisions.md): architecture decision records
 
 ## Optional
